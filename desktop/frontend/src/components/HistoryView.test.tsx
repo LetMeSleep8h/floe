@@ -16,9 +16,9 @@ import type {HistEntry} from '../history';
 
 // A top-level component, not one declared inside a test body: the same rule
 // the view itself follows, so the harness cannot remount what it is testing.
-function Harness({initial}: {initial: HistEntry[]}) {
+function Harness({initial, asking = false}: {initial: HistEntry[]; asking?: boolean}) {
     const [history, setHistory] = useState<HistEntry[]>(initial);
-    const [confirmClear, setConfirmClear] = useState(false);
+    const [confirmClear, setConfirmClear] = useState(asking);
     const [expandedRow, setExpandedRow] = useState<string | null>(null);
     return (
         <HistoryView
@@ -141,6 +141,37 @@ describe('Clear', () => {
         expect(screen.getByText('No transfers yet')).toBeTruthy();
         expect(screen.queryByText('Clear all?')).toBeNull();
         expect(screen.queryByRole('button', {name: 'Clear'})).toBeNull();
+    });
+
+    // issue #728: each of the three buttons unmounts on press, so focus must
+    // follow the question instead of falling to the body.
+    it('moves focus with the question: to No when it opens, back to Clear after No', async () => {
+        const user = userEvent.setup();
+        mount([received, sent]);
+
+        await user.click(screen.getByRole('button', {name: 'Clear'}));
+        expect(screen.getByRole('group', {name: 'Clear all?'})).toBeTruthy();
+        expect(document.activeElement).toBe(screen.getByRole('button', {name: 'No'}));
+
+        await user.click(screen.getByRole('button', {name: 'No'}));
+        expect(document.activeElement).toBe(screen.getByRole('button', {name: 'Clear'}));
+    });
+
+    it('after Yes, focus lands on the empty line, which is not a Tab stop', async () => {
+        const user = userEvent.setup();
+        mount([received, sent]);
+
+        await user.click(screen.getByRole('button', {name: 'Clear'}));
+        await user.click(screen.getByRole('button', {name: 'Yes'}));
+        const empty = screen.getByText('No transfers yet');
+        expect(document.activeElement).toBe(empty);
+        expect(empty.getAttribute('tabindex')).toBe('-1');
+    });
+
+    it('mounting with the question already showing moves no focus', () => {
+        render(<Harness initial={[received, sent]} asking />);
+        expect(screen.getByRole('group', {name: 'Clear all?'})).toBeTruthy();
+        expect(document.activeElement).toBe(document.body);
     });
 });
 

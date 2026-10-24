@@ -1,4 +1,4 @@
-import {useState, type Dispatch, type SetStateAction} from 'react';
+import {useEffect, useId, useRef, useState, type Dispatch, type SetStateAction} from 'react';
 import {ArrowDownLeft, ArrowUpRight, ChevronDown} from 'lucide-react';
 import {OpenFolder, RevealFile} from '../../wailsjs/go/main/App';
 import {cn, Eyebrow} from './ui';
@@ -39,12 +39,30 @@ export default function HistoryView({history, setHistory, confirmClear, setConfi
 }) {
     // The folder a request row is asking to open (DN8), or null.
     const [confirmDir, setConfirmDir] = useState<string | null>(null);
+    const clearRef = useRef<HTMLButtonElement>(null);
+    const noRef = useRef<HTMLButtonElement>(null);
+    const emptyRef = useRef<HTMLParagraphElement>(null);
+    const questionId = useId();
+    // Clear, Yes and No each unmount the button that was pressed, so focus
+    // follows the question, as on the /r page's Cancel (RequestProgress.tsx):
+    // to No, the safe answer, when it opens; back to Clear after No; to the
+    // empty line after Yes. Only a change moves focus, never a mount: Settings
+    // unmounts this view and keeps confirmClear, so closing Settings mounts it
+    // with the question already showing, and focus stays where the owner put it.
+    const wasAsking = useRef(confirmClear);
+    useEffect(() => {
+        if (wasAsking.current === confirmClear) return;
+        wasAsking.current = confirmClear;
+        if (confirmClear) noRef.current?.focus();
+        else (clearRef.current ?? emptyRef.current)?.focus();
+    }, [confirmClear]);
     return (
         <div className="space-y-3">
             <div className="flex items-baseline justify-between px-0.5">
                 <Eyebrow>History</Eyebrow>
                 {history.length > 0 && !confirmClear && (
                     <button
+                        ref={clearRef}
                         onClick={() => setConfirmClear(true)}
                         className="font-mono text-[10px] uppercase tracking-[0.2em] text-zinc-600 transition-colors hover:text-zinc-300"
                     >
@@ -52,8 +70,8 @@ export default function HistoryView({history, setHistory, confirmClear, setConfi
                     </button>
                 )}
                 {confirmClear && (
-                    <span className="animate-floe-in flex items-center gap-3 font-mono text-[10px] uppercase tracking-[0.2em]">
-                        <span className="text-zinc-500">Clear all?</span>
+                    <span role="group" aria-labelledby={questionId} className="animate-floe-in flex items-center gap-3 font-mono text-[10px] uppercase tracking-[0.2em]">
+                        <span id={questionId} className="text-zinc-500">Clear all?</span>
                         <button
                             onClick={() => { setHistory([]); setConfirmClear(false); }}
                             className="text-red-400 transition-colors hover:text-red-300"
@@ -61,6 +79,7 @@ export default function HistoryView({history, setHistory, confirmClear, setConfi
                             Yes
                         </button>
                         <button
+                            ref={noRef}
                             onClick={() => setConfirmClear(false)}
                             className="text-zinc-600 transition-colors hover:text-zinc-300"
                         >
@@ -70,7 +89,7 @@ export default function HistoryView({history, setHistory, confirmClear, setConfi
                 )}
             </div>
             {history.length === 0 ? (
-                <p className="py-8 text-center text-xs text-zinc-500">No transfers yet</p>
+                <p ref={emptyRef} tabIndex={-1} className="py-8 text-center text-xs text-zinc-500 outline-none">No transfers yet</p>
             ) : (
                 <ul className="custom-scrollbar max-h-80 divide-y divide-white/[0.04] overflow-y-auto rounded-lg border border-white/[0.06] bg-white/[0.02]">
                     {history.map((h, i) => {
