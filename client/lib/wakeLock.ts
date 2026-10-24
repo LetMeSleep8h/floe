@@ -21,8 +21,12 @@ export interface SentinelLike {
 
 export interface WakeLockHolder {
     /** Ask for the lock; a no-op while one is held or where the page may not
-     *  ask (no API, or the page is not visible). */
+     *  ask (no API, or the page is not visible). The wish is kept even where
+     *  the page may not ask, so resume() can pick it up. */
     acquire(): Promise<void>;
+    /** Ask again for a lock the page still wants; a no-op when nothing wants
+     *  one. For coming back to a visible tab. */
+    resume(): Promise<void>;
     /** Let go of the lock, including one still being requested. */
     release(): void;
     held(): SentinelLike | null;
@@ -35,31 +39,38 @@ export function createWakeLockHolder(deps: {
     let held: SentinelLike | null = null;
     let wanted = false;
     let requesting = false;
+    // The wish is recorded before the canRequest() check, so a request made
+    // from a hidden tab (the usual case: the recipient opens the link while
+    // the sender is still in the chat app) is remembered for resume().
+    const acquire = async () => {
+        wanted = true;
+        if (!deps.canRequest()) return;
+        // Wanted again even when a request is already on its way, so that
+        // request keeps the lock it lands with.
+        if (held || requesting) return;
+        requesting = true;
+        let sentinel: SentinelLike;
+        try {
+            sentinel = await deps.request();
+        } catch {
+            return;
+        } finally {
+            requesting = false;
+        }
+        if (!wanted) {
+            // Released while the request was pending.
+            sentinel.release().catch(() => {});
+            return;
+        }
+        held = sentinel;
+        sentinel.addEventListener('release', () => {
+            if (held === sentinel) held = null;
+        });
+    };
     return {
-        async acquire() {
-            if (!deps.canRequest()) return;
-            // Wanted again even when a request is already on its way, so that
-            // request keeps the lock it lands with.
-            wanted = true;
-            if (held || requesting) return;
-            requesting = true;
-            let sentinel: SentinelLike;
-            try {
-                sentinel = await deps.request();
-            } catch {
-                return;
-            } finally {
-                requesting = false;
-            }
-            if (!wanted) {
-                // Released while the request was pending.
-                sentinel.release().catch(() => {});
-                return;
-            }
-            held = sentinel;
-            sentinel.addEventListener('release', () => {
-                if (held === sentinel) held = null;
-            });
+        acquire,
+        async resume() {
+            if (wanted) await acquire();
         },
         release() {
             wanted = false;

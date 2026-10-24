@@ -129,3 +129,57 @@ describe('wake lock holder', () => {
         expect(h.held()).toBeNull();
     });
 });
+
+describe('wake lock resume (issue #730)', () => {
+    it('a wish made from a hidden tab is honoured by resume()', async () => {
+        let visible = false;
+        let requests = 0;
+        const holder = createWakeLockHolder({
+            request: async () => {
+                requests++;
+                return fakeSentinel();
+            },
+            canRequest: () => visible,
+        });
+        // The sender is in the chat app when the recipient joins: acquire is
+        // called while the page may not ask.
+        await holder.acquire();
+        expect(requests).toBe(0);
+
+        visible = true;
+        await holder.resume();
+        expect(requests).toBe(1);
+        expect(holder.held()).not.toBeNull();
+    });
+
+    it('resume is a no-op when nothing wants a lock', async () => {
+        let requests = 0;
+        const holder = createWakeLockHolder({
+            request: async () => {
+                requests++;
+                return fakeSentinel();
+            },
+            canRequest: () => true,
+        });
+        await holder.resume();
+        expect(requests).toBe(0);
+        expect(holder.held()).toBeNull();
+    });
+
+    it('resume does nothing after release', async () => {
+        let requests = 0;
+        const holder = createWakeLockHolder({
+            request: async () => {
+                requests++;
+                return fakeSentinel();
+            },
+            canRequest: () => true,
+        });
+        await holder.acquire();
+        expect(holder.held()).not.toBeNull();
+        await holder.release();
+        await holder.resume();
+        expect(requests).toBe(1);
+        expect(holder.held()).toBeNull();
+    });
+});

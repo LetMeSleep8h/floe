@@ -8,8 +8,10 @@ import { createWakeLockHolder } from '@/lib/wakeLock';
  * requestWakeLock: acquires the lock (no-op if already held, if the page is
  * not visible, or if the API is missing)
  * releaseWakeLock: releases the lock, including one still being requested
+ * resumeWakeLock: asks again for a lock the page still wants; a no-op when
+ * nothing wants one
  *
- * Both functions are stable, so they are safe to include in useEffect
+ * All three functions are stable, so they are safe to include in useEffect
  * dependency arrays. The bookkeeping, and the two races it closes (a release
  * while the request is pending, and the browser's own release while the tab
  * is hidden), live in lib/wakeLock.ts with tests. Best effort throughout.
@@ -26,7 +28,8 @@ export function useWakeLock() {
     );
 
     const requestWakeLock = useCallback(() => holder.acquire(), [holder]);
+    const resumeWakeLock = useCallback(() => holder.resume(), [holder]);
     const releaseWakeLock = useCallback(() => holder.release(), [holder]);
 
-    return { requestWakeLock, releaseWakeLock };
+    return { requestWakeLock, resumeWakeLock, releaseWakeLock };
 }

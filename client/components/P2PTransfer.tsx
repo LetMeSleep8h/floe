@@ -314,7 +314,7 @@ export function P2PTransfer() {
         rejoinTimerRef.current = null;
     };
 
-    const { requestWakeLock, releaseWakeLock } = useWakeLock();
+    const { requestWakeLock, resumeWakeLock, releaseWakeLock } = useWakeLock();
 
     const {
         isConnected,
@@ -1011,11 +1011,13 @@ export function P2PTransfer() {
         return () => window.removeEventListener('hashchange', onHashChange);
     }, []);
 
+    // Coming back to the tab re-asks only for a lock the page still wants.
+    // Keying on isConnected asked whenever the signaling socket was up, which
+    // is the whole life of the page: an idle send page or a link waiting for
+    // its recipient held the wake lock from the first tab switch on.
     useEffect(() => {
         const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible' && isConnected) {
-                requestWakeLock();
-            }
+            if (document.visibilityState === 'visible') resumeWakeLock();
         };
         document.addEventListener('visibilitychange', handleVisibilityChange);
         return () =>
@@ -1023,7 +1025,7 @@ export function P2PTransfer() {
                 'visibilitychange',
                 handleVisibilityChange
             );
-    }, [isConnected, requestWakeLock]);
+    }, [resumeWakeLock]);
 
     useEffect(() => {
         const status =
