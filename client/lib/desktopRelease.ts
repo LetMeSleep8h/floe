@@ -50,7 +50,7 @@ export const DESKTOP_SHA_URL = `${RELEASE_BASE}/SHA256SUMS.txt`;
  * keep. The assets and checksums it also carries already have their own rows
  * on /download.
  */
-export const DESKTOP_RELEASE_NOTES_URL = 'https://www.floe.one/docs/changelog';
+export const DESKTOP_RELEASE_NOTES_URL = `https://www.floe.one/docs/changelog#${DESKTOP_TAG.replace(/\./g, '-')}`;
 
 /** The GitHub release page for this tag, for anyone who wants the raw assets. */
 export const DESKTOP_RELEASE_PAGE_URL = `https://github.com/jannskiee/floe/releases/tag/${DESKTOP_TAG}`;

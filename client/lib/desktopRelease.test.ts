@@ -46,7 +46,7 @@ describe('desktopRelease', () => {
         // desktop-release.yml writes the same boilerplate body on every tag, so
         // the GitHub release page carries no account of what changed. The docs
         // changelog is the only place that does.
-        expect(DESKTOP_RELEASE_NOTES_URL).toBe('https://www.floe.one/docs/changelog');
+        expect(DESKTOP_RELEASE_NOTES_URL).toBe(`https://www.floe.one/docs/changelog#${DESKTOP_TAG.replace(/\./g, '-')}`);
         expect(DESKTOP_RELEASE_NOTES_URL).not.toContain('github.com');
     });
 
