@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf8"
 )
 
@@ -176,5 +177,78 @@ func TestTruncateNameCountsRunes(t *testing.T) {
 	}
 	if got := truncateName("ab", 3); got != "ab" {
 		t.Errorf("short name changed: %q", got)
+	}
+}
+
+// TestFormatSpeed pins the speed in the Sent and Received boxes ("Time  8s ·
+// avg 1.4 MB/s"). The "" rows are why the boxes guard the call: a zero
+// elapsed time divides to +Inf or NaN, and the box then shows the time alone.
+// The rows that also appear in client/lib/transferUtils.test.ts or
+// desktop/frontend/src/progress.test.ts expect the same strings there.
+func TestFormatSpeed(t *testing.T) {
+	for _, tc := range []struct {
+		in   float64
+		want string
+	}{
+		{0, ""},
+		{-1, ""},
+		{math.NaN(), ""},  // 0 bytes over a zero elapsed time
+		{math.Inf(1), ""}, // some bytes over a zero elapsed time
+		{math.Inf(-1), ""},
+		{1, "0.0 KB/s"}, // positive but under 0.05 KB/s: still printed
+		{500, "0.5 KB/s"},
+		{512 * 1024, "512.0 KB/s"},
+		{468 * 1024, "468.0 KB/s"},  // docs/cli/receive.mdx
+		{1000 * 1000, "976.6 KB/s"}, // 1 MB here is 1,048,576 bytes (docs/cli/send.mdx)
+		{1024*1024 - 1, "1024.0 KB/s"},
+		{1024 * 1024, "1.0 MB/s"},
+		{1.4 * 1024 * 1024, "1.4 MB/s"}, // docs/cli/send.mdx
+		{5.5 * 1024 * 1024, "5.5 MB/s"},
+		{1024 * 1024 * 1024 * 1024, "1048576.0 MB/s"}, // there is no GB/s
+	} {
+		if got := formatSpeed(tc.in); got != tc.want {
+			t.Errorf("formatSpeed(%v) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+// TestFormatDuration pins the time in the Sent and Received boxes and in
+// floe send --to's arrived line ("All 12 files arrived (38 GB in 17m 4s,
+// direct)."), which calls the exported FormatDuration. Two differences from
+// the TypeScript twins are Go behavior to keep: this truncates to whole
+// seconds where formatETA and fmtEta round up, and a negative duration prints
+// "0s" where they print nothing.
+func TestFormatDuration(t *testing.T) {
+	for _, tc := range []struct {
+		in   time.Duration
+		want string
+	}{
+		{0, "0s"},
+		{500 * time.Millisecond, "0s"}, // docs/cli/send.mdx: "48 Bytes in 0s"
+		{999 * time.Millisecond, "0s"},
+		{time.Second, "1s"},
+		{8 * time.Second, "8s"}, // docs/cli/send.mdx
+		{59 * time.Second, "59s"},
+		{59900 * time.Millisecond, "59s"}, // the TypeScript twins print "1m 0s"
+		{60 * time.Second, "1m 0s"},
+		{90 * time.Second, "1m 30s"},
+		{17*time.Minute + 4*time.Second, "17m 4s"}, // docs/cli/send.mdx
+		{3599 * time.Second, "59m 59s"},
+		{3599999 * time.Millisecond, "59m 59s"},
+		{time.Hour, "1h 0m"},
+		{time.Hour + 59*time.Second, "1h 0m"}, // seconds are dropped from an hour on
+		{90 * time.Minute, "1h 30m"},
+		{10000 * time.Second, "2h 46m"},
+		{100*time.Hour + 59*time.Minute + 59*time.Second, "100h 59m"}, // there are no days
+		// Clamped to zero. The TypeScript twins print "" for a negative.
+		{-time.Second, "0s"},
+		{-time.Hour, "0s"},
+	} {
+		if got := formatDuration(tc.in); got != tc.want {
+			t.Errorf("formatDuration(%v) = %q, want %q", tc.in, got, tc.want)
+		}
+		if got := FormatDuration(tc.in); got != tc.want {
+			t.Errorf("FormatDuration(%v) = %q, want %q", tc.in, got, tc.want)
+		}
 	}
 }
