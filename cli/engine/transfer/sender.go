@@ -484,6 +484,11 @@ func parseAckConfirms(raw []byte) bool {
 // the CLI behavior: terminal progress and the CLI update instruction.
 type SendOptions struct {
 	OnProgress ProgressFunc
+	// NoProgress suppresses the terminal bar (--no-progress): for scripts and
+	// CI logs that read stdout, which otherwise have to skip the carriage-return
+	// frames the bar redraws in place. The zero value keeps the bar, and stdout
+	// not being a terminal does not: that behaviour is documented.
+	NoProgress bool
 	// OnDelivered fires exactly once, after the delivery wait ends and before
 	// the summary is printed, with the same numbers the Verified row reads. It
 	// does not fire on any error path. Leave nil for the CLI.
@@ -1132,8 +1137,10 @@ ackLoop:
 	// (CLI) or the callback (GUI, when onProgress is non-nil).
 	var bar *progressbar.ProgressBar
 	if onProgress == nil {
-		bar = newProgressBar(fileSize, index, total, entry.displayName)
-		bar.Set64(offset)
+		bar = newProgressBar(fileSize, index, total, entry.displayName, opts.NoProgress)
+		if bar != nil {
+			bar.Set64(offset)
+		}
 	}
 	// barEnded is set where the finished bar gets its line break below. Any
 	// other return leaves the bar's line open once it has drawn, and the

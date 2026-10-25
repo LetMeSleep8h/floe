@@ -149,7 +149,14 @@ func displayText(s string, maxRunes int) string {
 	return string(r[:stem]) + "…" + string(ext)
 }
 
-func newProgressBar(size int64, index, total int, name string) *progressbar.ProgressBar {
+// newProgressBar builds the terminal progress bar. noProgress (the
+// --no-progress flag) returns a nil bar: the callers already treat nil as
+// "no bar drawn" (no redraws, no line break, IsStarted stays false), which is
+// exactly the flag's contract for scripts and CI logs.
+func newProgressBar(size int64, index, total int, name string, noProgress bool) *progressbar.ProgressBar {
+	if noProgress {
+		return nil
+	}
 	return progressbar.NewOptions64(
 		size,
 		progressbar.OptionSetDescription(

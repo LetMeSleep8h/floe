@@ -24,6 +24,7 @@ import (
 )
 
 var (
+	flagNoProgress bool
 	flagOutput     string
 	flagAutoAccept bool
 	flagNoReport   bool
@@ -61,6 +62,7 @@ func init() {
 		"auto-accept incoming files without confirmation")
 	receiveCmd.Flags().BoolVar(&flagNoReport, "no-report", false,
 		"do not report transferred bytes to Floe's public global counter")
+	receiveCmd.Flags().BoolVar(&flagNoProgress, "no-progress", false, "do not draw the progress bar (for scripts and CI logs)")
 }
 
 func runReceive(cmd *cobra.Command, args []string) error {
@@ -227,6 +229,7 @@ func runReceive(cmd *cobra.Command, args []string) error {
 	// message.
 	early := conn.Early()
 	err = transfer.ReceiveFilesWithOptions(dc, absOutput, flagAutoAccept, version, statsURL, transfer.ReceiveOptions{
+		NoProgress: flagNoProgress,
 		Messages: early.Msgs,
 		Closed:   early.Closed,
 		// For Ctrl+C's stop: a count of the files committed under their final
