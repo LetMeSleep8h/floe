@@ -158,6 +158,9 @@ type FileDone struct {
 // Callbacks run synchronously on the receive loop, so keep them fast.
 type ReceiveOptions struct {
 	OnProgress ProgressFunc
+	// NoProgress suppresses the terminal bar (--no-progress), as on the send
+	// side: scripts and CI logs keep only the status lines and the summary.
+	NoProgress bool
 	OnIncoming func(IncomingInfo)
 	// OnFileDone fires once per committed file, after the rename and any
 	// numbered-sibling correction, and never for a refused file. It delays the
@@ -748,7 +751,7 @@ func ReceiveFilesWithOptions(dc *webrtc.DataChannel, outputDir string, autoAccep
 
 				// Progress bar for this file (CLI). GUIs get callback updates instead.
 				if onProgress == nil {
-					bar = newProgressBar(info.FileSize, info.Index, info.Total, currentSavedName)
+					bar = newProgressBar(info.FileSize, info.Index, info.Total, currentSavedName, opts.NoProgress)
 				}
 
 				// Send ack as BINARY with protocol version fields so the sender

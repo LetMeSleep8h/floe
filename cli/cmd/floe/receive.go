@@ -24,6 +24,7 @@ import (
 )
 
 var (
+	flagNoProgress bool
 	flagOutput     string
 	flagAutoAccept bool
 	flagNoReport   bool
@@ -57,6 +58,7 @@ names, contents, or identities are included. To opt out of this report, use
 func init() {
 	receiveCmd.Flags().StringVarP(&flagOutput, "output", "o", ".",
 		"directory to save received files")
+	receiveCmd.Flags().BoolVar(&flagNoProgress, "no-progress", false, "do not draw the progress bar (for scripts and CI logs)")
 	receiveCmd.Flags().BoolVarP(&flagAutoAccept, "yes", "y", false,
 		"auto-accept incoming files without confirmation")
 	receiveCmd.Flags().BoolVar(&flagNoReport, "no-report", false,
@@ -227,8 +229,9 @@ func runReceive(cmd *cobra.Command, args []string) error {
 	// message.
 	early := conn.Early()
 	err = transfer.ReceiveFilesWithOptions(dc, absOutput, flagAutoAccept, version, statsURL, transfer.ReceiveOptions{
-		Messages: early.Msgs,
-		Closed:   early.Closed,
+		NoProgress: flagNoProgress,
+		Messages:   early.Msgs,
+		Closed:     early.Closed,
 		// For Ctrl+C's stop: a count of the files committed under their final
 		// names, and the engine's word that it has finished.
 		OnFileDone:     func(transfer.FileDone) { r.saved.Add(1) },

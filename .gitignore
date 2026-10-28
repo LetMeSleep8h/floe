@@ -96,3 +96,4 @@ client/CLAUDE.md
 # only because a global ~/.config/git/ignore covered it; on any fork it showed
 # up as untracked noise.
 .claude/settings.local.json
+safai/

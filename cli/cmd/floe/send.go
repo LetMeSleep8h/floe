@@ -44,6 +44,7 @@ func init() {
 	// The help line is the approved copy's (TL-34), byte for byte.
 	sendCmd.Flags().StringVar(&flagTo, "to", "",
 		"send through a request link made in Floe Desktop instead of creating a code")
+	sendCmd.Flags().BoolVar(&flagNoProgress, "no-progress", false, "do not draw the progress bar (for scripts and CI logs)")
 }
 
 func runSend(cmd *cobra.Command, args []string) error {
@@ -210,8 +211,9 @@ func runSend(cmd *cobra.Command, args []string) error {
 	closeOnFailed(conn, quit)
 	early := conn.Early()
 	err = transfer.SendFilesWithOptions(dc, args, version, transfer.SendOptions{
-		Messages: early.Msgs,
-		Closed:   early.Closed,
+		NoProgress: flagNoProgress,
+		Messages:   early.Msgs,
+		Closed:     early.Closed,
 		// Closed by Ctrl+C's stop step: the send then queues nothing more, so
 		// the step's abort frame is the last one on the channel.
 		Stop: r.halt,
